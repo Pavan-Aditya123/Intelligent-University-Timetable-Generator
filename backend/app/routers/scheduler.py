@@ -5,6 +5,7 @@ from ..database import get_db
 from .. import models, crud
 from ..engine.csp_scheduler import CSPSchedulerEngine
 from ..engine.genetic_scheduler import GeneticSchedulerEngine
+from ..engine.fuzzy_decision import FuzzyDecisionEngine
 from ..engine.validator import validate_timetable
 
 router = APIRouter(prefix="/api/scheduler", tags=["Timetable Scheduler Engine"])
@@ -12,8 +13,8 @@ router = APIRouter(prefix="/api/scheduler", tags=["Timetable Scheduler Engine"])
 @router.post("/generate")
 def generate_timetable_pipeline(db: Session = Depends(get_db)):
     """
-    Full Phase 2.2 Timetable Generation Pipeline:
-    Database -> CSP / Backtracking (Feasible Initial Solution) -> Genetic Algorithm (GA Optimization) -> Validation -> Database
+    Full Phase 2.3 Timetable Generation Pipeline:
+    Database -> CSP Feasibility -> GA Optimization -> Fuzzy Decision Evaluation -> Hard Validation -> DB Persistence
     """
     config = crud.get_university_config(db)
     departments = crud.get_departments(db)
@@ -34,7 +35,9 @@ def generate_timetable_pipeline(db: Session = Depends(get_db)):
             "generated_count": 0,
             "initial_fitness": 0.0,
             "optimized_fitness": 0.0,
-            "improvement_percent": 0.0,
+            "fuzzy_score": 0.0,
+            "final_score": 0.0,
+            "fuzzy_decision": "Poor",
             "generations": 0,
             "diagnostics": csp_result.get("diagnostics", [])
         }
@@ -45,14 +48,24 @@ def generate_timetable_pipeline(db: Session = Depends(get_db)):
 
     final_entries = ga_result["best_entries"] if ga_result["status"] == "success" else csp_result["generated_entries"]
 
-    # Step 3: Hard Constraint Validation Audit
+    # Step 3: Fuzzy Decision-Making Engine (Phase 2.3)
+    fuzzy_engine = FuzzyDecisionEngine(config, sections, faculty_list, subjects, rooms)
+    fuzzy_result = fuzzy_engine.evaluate_timetable(final_entries)
+
+    # Combined Score calculation (60% GA Fitness + 40% Fuzzy Suitability Score)
+    ga_fit = ga_result.get("optimized_fitness", 70.0)
+    fuzzy_sc = fuzzy_result.get("fuzzy_score", 70.0)
+    final_combined_score = round((ga_fit * 0.60) + (fuzzy_sc * 0.40), 1)
+
+    # Step 4: Hard Constraint Validation Audit
     validation = validate_timetable(config, sections, faculty_list, subjects, rooms, final_entries)
     if not validation["is_valid"]:
-        # If GA produced invalid solution, fallback safely to CSP solution
+        # Fallback safely to CSP solution if validation fails
         final_entries = csp_result["generated_entries"]
-        validation = validate_timetable(config, sections, faculty_list, subjects, rooms, final_entries)
+        fuzzy_result = fuzzy_engine.evaluate_timetable(final_entries)
+        final_combined_score = round((csp_result.get("initial_fitness", 30.0) * 0.60) + (fuzzy_result.get("fuzzy_score", 50.0) * 0.40), 1)
 
-    # Step 4: Persist final timetable to DB safely
+    # Step 5: Persist final timetable to DB safely
     db.query(models.TimetableEntry).delete()
     for entry in final_entries:
         db_entry = models.TimetableEntry(
@@ -69,12 +82,17 @@ def generate_timetable_pipeline(db: Session = Depends(get_db)):
 
     return {
         "status": "success",
-        "phase": "Phase 2.2 - CSP + Genetic Algorithm",
-        "message": "Successfully generated and optimized university timetable with CSP feasibility & GA multi-objective optimization.",
+        "phase": "Phase 2.3 - CSP + GA + Fuzzy Decision Engine",
+        "message": "Successfully generated and evaluated university timetable using CSP feasibility, GA optimization, and Fuzzy Decision Making.",
         "generated_count": len(final_entries),
-        "initial_fitness": ga_result.get("initial_fitness", 60.0),
-        "optimized_fitness": ga_result.get("optimized_fitness", 85.0),
-        "improvement_percent": ga_result.get("improvement_percent", 40.0),
+        "initial_fitness": ga_result.get("initial_fitness", 30.0),
+        "optimized_fitness": ga_fit,
+        "fuzzy_score": fuzzy_sc,
+        "final_score": final_combined_score,
+        "fuzzy_decision": fuzzy_result.get("decision", "Good"),
+        "fuzzy_breakdown": fuzzy_result.get("breakdown", {}),
+        "fuzzy_inputs": fuzzy_result.get("inputs", {}),
+        "rules_fired_count": len(fuzzy_result.get("rules_fired", [])),
         "generations": ga_result.get("generations", 100),
         "diagnostics": []
     }

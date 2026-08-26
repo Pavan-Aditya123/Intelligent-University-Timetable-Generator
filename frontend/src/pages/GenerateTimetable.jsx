@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getDashboardStats, getValidationReport, generateTimetable, clearGeneratedTimetable } from '../services/api';
-import { Sparkles, CheckCircle2, AlertCircle, Cpu, ArrowRight, ShieldCheck, RefreshCw, CalendarDays, Trash2, TrendingUp, Award, Layers } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertCircle, Cpu, ArrowRight, ShieldCheck, RefreshCw, CalendarDays, Trash2, TrendingUp, Award, Layers, Scale, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const GenerateTimetable = ({ stats, refreshStats }) => {
@@ -40,7 +40,7 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
     } catch (err) {
       setResultData({
         status: 'failed',
-        message: err.response?.data?.detail || 'An unexpected error occurred during timetable optimization.',
+        message: err.response?.data?.detail || 'An unexpected error occurred during timetable generation.',
         diagnostics: []
       });
     } finally {
@@ -61,14 +61,27 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
 
   const isReady = stats?.is_ready_for_generation && validationReport?.is_valid;
 
+  const getDecisionBadge = (decision) => {
+    switch (decision) {
+      case 'Excellent':
+        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+      case 'Good':
+        return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+      case 'Acceptable':
+        return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      default:
+        return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Generate Optimized University Timetable</h2>
+          <h2 className="text-xl font-bold text-slate-800">Generate University Timetable</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Phase 2.2 Pipeline: CSP Feasibility Generator &rarr; Genetic Algorithm Multi-Objective Optimizer.
+            Phase 2.3 Pipeline: CSP Feasibility &rarr; GA Optimization &rarr; Fuzzy Decision Evaluation.
           </p>
         </div>
 
@@ -90,54 +103,60 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
             ) : (
               <Sparkles className="w-4 h-4 text-amber-300" />
             )}
-            <span>{generating ? 'Running CSP + GA Optimization Pipeline...' : 'Generate Optimized Timetable (CSP + GA)'}</span>
+            <span>{generating ? 'Running CSP + GA + Fuzzy Pipeline...' : 'Generate Timetable (CSP + GA + Fuzzy)'}</span>
           </button>
         </div>
       </div>
 
-      {/* Optimization Performance Metrics Banner */}
+      {/* Optimization & Fuzzy Metrics Banner */}
       {resultData && resultData.status === 'success' && (
-        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-2xl p-6 text-white border border-indigo-800 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-indigo-800/80 pb-3">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 rounded-2xl p-6 text-white border border-indigo-800 shadow-xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-800/80 pb-3">
             <div className="flex items-center space-x-2">
               <Award className="w-5 h-5 text-amber-400" />
-              <h3 className="text-base font-extrabold text-white">Genetic Algorithm Optimization Metrics</h3>
+              <h3 className="text-base font-extrabold text-white">Phase 2.3 Multi-Engine Optimization & Evaluation</h3>
             </div>
-            <Link
-              to="/view-timetable"
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow flex items-center space-x-1.5"
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span>View Master Timetable Grid</span>
-            </Link>
+            <div className="flex items-center space-x-2">
+              <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getDecisionBadge(resultData.fuzzy_decision)}`}>
+                Fuzzy Decision: {resultData.fuzzy_decision || 'Good'}
+              </span>
+              <Link
+                to="/view-timetable"
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow flex items-center space-x-1.5"
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span>View Master Timetable Grid</span>
+              </Link>
+            </div>
           </div>
 
+          {/* Primary Scores Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-white/10 p-3.5 rounded-xl border border-white/10 backdrop-blur-sm">
               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Initial CSP Fitness</span>
               <span className="text-xl font-extrabold text-slate-200 mt-1 block">{resultData.initial_fitness} / 100</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Baseline Feasible</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Hard Feasible</span>
+            </div>
+
+            <div className="bg-white/10 p-3.5 rounded-xl border border-indigo-500/30 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block">GA Fitness (60%)</span>
+              <span className="text-xl font-extrabold text-indigo-300 mt-1 block">{resultData.optimized_fitness} / 100</span>
+              <span className="text-[10px] text-indigo-300 font-semibold mt-0.5 block">+{resultData.improvement_percent}% Imprv</span>
+            </div>
+
+            <div className="bg-white/10 p-3.5 rounded-xl border border-purple-500/30 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Fuzzy Suitability (40%)</span>
+              <span className="text-xl font-extrabold text-purple-300 mt-1 block">{resultData.fuzzy_score} / 100</span>
+              <span className="text-[10px] text-purple-300 font-semibold mt-0.5 block">Centroid Defuzzified</span>
             </div>
 
             <div className="bg-white/10 p-3.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm">
-              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider block">Optimized GA Fitness</span>
-              <span className="text-xl font-extrabold text-emerald-400 mt-1 block">{resultData.optimized_fitness} / 100</span>
-              <span className="text-[10px] text-emerald-300 font-semibold mt-0.5 block">Multi-Objective Score</span>
-            </div>
-
-            <div className="bg-white/10 p-3.5 rounded-xl border border-amber-500/30 backdrop-blur-sm">
-              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">Fitness Improvement</span>
-              <span className="text-xl font-extrabold text-amber-400 mt-1 block flex items-center">
-                <TrendingUp className="w-4 h-4 mr-1 text-amber-400" />
-                +{resultData.improvement_percent}%
+              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider block">Final Combined Score</span>
+              <span className="text-xl font-extrabold text-emerald-400 mt-1 block flex items-center">
+                <TrendingUp className="w-4 h-4 mr-1 text-emerald-400" />
+                {resultData.final_score} / 100
               </span>
-              <span className="text-[10px] text-amber-300 mt-0.5 block">Workload & Spreading</span>
-            </div>
-
-            <div className="bg-white/10 p-3.5 rounded-xl border border-white/10 backdrop-blur-sm">
-              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block">Generations Run</span>
-              <span className="text-xl font-extrabold text-indigo-300 mt-1 block">{resultData.generations}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Full GA Convergence</span>
+              <span className="text-[10px] text-emerald-300 mt-0.5 block">Overall Quality</span>
             </div>
 
             <div className="bg-white/10 p-3.5 rounded-xl border border-white/10 backdrop-blur-sm">
@@ -146,6 +165,38 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
               <span className="text-[10px] text-emerald-400 font-semibold mt-0.5 block">0 Hard Conflicts</span>
             </div>
           </div>
+
+          {/* Fuzzy Decision Factors Breakdown */}
+          {resultData.fuzzy_breakdown && (
+            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+              <div className="text-xs font-bold text-slate-300 flex items-center space-x-2">
+                <Scale className="w-4 h-4 text-purple-400" />
+                <span>Fuzzy Decision Suitability Factors Breakdown</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-slate-400 text-[10px] block">Day Spreading:</span>
+                  <span className="font-bold text-slate-200">{resultData.fuzzy_breakdown.day_distribution_label}</span>
+                </div>
+                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-slate-400 text-[10px] block">Faculty Balance:</span>
+                  <span className="font-bold text-slate-200">{resultData.fuzzy_breakdown.faculty_balance_label}</span>
+                </div>
+                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-slate-400 text-[10px] block">Student Gaps:</span>
+                  <span className="font-bold text-slate-200">{resultData.fuzzy_breakdown.student_gaps_label}</span>
+                </div>
+                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-slate-400 text-[10px] block">Consecutive Load:</span>
+                  <span className="font-bold text-slate-200">{resultData.fuzzy_breakdown.consecutive_load_label}</span>
+                </div>
+                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-slate-400 text-[10px] block">Faculty Preference:</span>
+                  <span className="font-bold text-slate-200">{resultData.fuzzy_breakdown.faculty_preference_label}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -181,21 +232,21 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
       <div
         className={`rounded-2xl p-6 border shadow-sm ${
           isReady
-            ? 'bg-gradient-to-r from-indigo-900 via-blue-900 to-purple-950 text-white border-indigo-700'
+            ? 'bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white border-purple-800'
             : 'bg-gradient-to-r from-slate-900 to-indigo-950 text-white border-slate-800'
         }`}
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center space-x-2 px-3 py-1 bg-white/10 rounded-full text-xs font-semibold backdrop-blur-sm">
-              <Cpu className="w-4 h-4 text-blue-300" />
-              <span>Phase 2.2 Pipeline: CSP + Genetic Algorithm</span>
+              <Cpu className="w-4 h-4 text-purple-300" />
+              <span>Phase 2.3 Complete Pipeline: CSP + GA + Fuzzy Engine</span>
             </div>
             <h3 className="text-2xl font-extrabold tracking-tight">
-              {isReady ? 'Feasibility + Soft-Constraint Optimization Ready' : 'Pre-Generation System Check'}
+              {isReady ? 'Feasibility + GA Optimization + Fuzzy Suitability' : 'Pre-Generation System Check'}
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              CSP Backtracking guarantees 100% hard-constraint feasibility. The Genetic Algorithm then optimizes class spreading across Monday–Friday, balances faculty teaching loads, minimizes student idle gaps, and respects faculty time preferences across 100 generations.
+              CSP Backtracking guarantees 100% hard feasibility. Genetic Algorithm optimizes day spreading and workload balancing across 100 generations. The Fuzzy Decision Engine evaluates soft constraint suitability using triangular & trapezoidal MFs, 15 IF-THEN rules, Mamdani inference, and Centroid defuzzification.
             </p>
           </div>
 
