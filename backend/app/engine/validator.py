@@ -194,3 +194,83 @@ def run_pre_generation_validation(db: Session) -> Dict[str, Any]:
         "errors_count": errors_count,
         "results": results
     }
+
+def validate_timetable(
+    config: Any,
+    sections: List[Any],
+    faculty_list: List[Any],
+    subjects: List[Any],
+    rooms: List[Any],
+    entries: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Validates a generated list of TimetableEntry records against hard constraints:
+    1. Section non-overlap
+    2. Faculty non-overlap
+    3. Room non-overlap
+    4. Room capacity matching
+    5. Laboratory requirement matching
+    6. Faculty maximum weekly workload limit
+    """
+    section_map = {s.id: s for s in sections}
+    faculty_map = {f.id: f for f in faculty_list}
+    subject_map = {sub.id: sub for sub in subjects}
+    room_map = {r.id: r for r in rooms}
+
+    section_busy = set()
+    faculty_busy = set()
+    room_busy = set()
+    faculty_hours = {f.id: 0 for f in faculty_list}
+
+    errors = []
+
+    for entry in entries:
+        sec_id = entry["section_id"]
+        sub_id = entry["subject_id"]
+        fac_id = entry["faculty_id"]
+        room_id = entry["room_id"]
+        day = entry["day_of_week"]
+        p = entry["period_number"]
+
+        sub = subject_map.get(sub_id)
+        sec = section_map.get(sec_id)
+        rm = room_map.get(room_id)
+        fac = faculty_map.get(fac_id)
+
+        # Section overlap check
+        if (sec_id, day, p) in section_busy:
+            errors.append(f"Section conflict at ({sec.name if sec else sec_id}, {day}, period {p})")
+        else:
+            section_busy.add((sec_id, day, p))
+
+        # Faculty overlap check
+        if (fac_id, day, p) in faculty_busy:
+            errors.append(f"Faculty conflict at ({fac.name if fac else fac_id}, {day}, period {p})")
+        else:
+            faculty_busy.add((fac_id, day, p))
+
+        # Room overlap check
+        if (room_id, day, p) in room_busy:
+            errors.append(f"Room conflict at ({rm.room_number if rm else room_id}, {day}, period {p})")
+        else:
+            room_busy.add((room_id, day, p))
+
+        # Room capacity check
+        if rm and sec and rm.capacity < sec.student_count:
+            errors.append(f"Room capacity error: Room {rm.room_number} ({rm.capacity}) < Section {sec.name} ({sec.student_count})")
+
+        # Lab requirement check
+        if sub and (sub.requires_lab or sub.course_type == "Lab") and rm:
+            if not (rm.is_lab or rm.room_type == "Laboratory"):
+                errors.append(f"Lab requirement error: Subject {sub.code} assigned to non-lab room {rm.room_number}")
+
+        # Faculty workload check
+        faculty_hours[fac_id] = faculty_hours.get(fac_id, 0) + 1
+        if fac and faculty_hours[fac_id] > fac.max_weekly_hours:
+            errors.append(f"Faculty workload exceeded for {fac.name}: {faculty_hours[fac_id]} > {fac.max_weekly_hours}")
+
+    is_valid = len(errors) == 0
+    return {
+        "is_valid": is_valid,
+        "errors": errors
+    }

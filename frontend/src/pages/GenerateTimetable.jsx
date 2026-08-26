@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { getDashboardStats, getValidationReport, generateTimetable, clearGeneratedTimetable } from '../services/api';
-import { Sparkles, CheckCircle2, AlertCircle, Cpu, ArrowRight, ShieldCheck, RefreshCw, CalendarDays, Trash2 } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertCircle, Cpu, ArrowRight, ShieldCheck, RefreshCw, CalendarDays, Trash2, TrendingUp, Award, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const GenerateTimetable = ({ stats, refreshStats }) => {
   const [validationReport, setValidationReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [resultMessage, setResultMessage] = useState({ type: '', text: '', diagnostics: [], count: 0 });
+  const [resultData, setResultData] = useState(null);
 
   const fetchAudit = async () => {
     setLoading(true);
@@ -29,31 +29,18 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
   const handleGenerate = async () => {
     if (generating) return;
     setGenerating(true);
-    setResultMessage({ type: '', text: '', diagnostics: [], count: 0 });
+    setResultData(null);
 
     try {
       const res = await generateTimetable();
-      if (res.data.status === 'success') {
-        setResultMessage({
-          type: 'success',
-          text: res.data.message,
-          count: res.data.generated_count,
-          diagnostics: []
-        });
-        if (refreshStats) refreshStats();
-      } else {
-        setResultMessage({
-          type: 'error',
-          text: res.data.message,
-          count: 0,
-          diagnostics: res.data.diagnostics || []
-        });
+      setResultData(res.data);
+      if (res.data.status === 'success' && refreshStats) {
+        refreshStats();
       }
     } catch (err) {
-      setResultMessage({
-        type: 'error',
-        text: err.response?.data?.detail || 'An unexpected error occurred during timetable generation.',
-        count: 0,
+      setResultData({
+        status: 'failed',
+        message: err.response?.data?.detail || 'An unexpected error occurred during timetable optimization.',
         diagnostics: []
       });
     } finally {
@@ -65,7 +52,7 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
     if (!window.confirm('Clear all generated timetable assignments?')) return;
     try {
       await clearGeneratedTimetable();
-      setResultMessage({ type: 'info', text: 'All generated timetable entries cleared.', diagnostics: [], count: 0 });
+      setResultData({ status: 'info', message: 'All generated timetable entries cleared.' });
       if (refreshStats) refreshStats();
     } catch (err) {
       console.error(err);
@@ -79,9 +66,9 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
       {/* Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Generate University Timetable</h2>
+          <h2 className="text-xl font-bold text-slate-800">Generate Optimized University Timetable</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Phase 2.1 Constraint Satisfaction Problem (CSP) & Backtracking Timetable Engine.
+            Phase 2.2 Pipeline: CSP Feasibility Generator &rarr; Genetic Algorithm Multi-Objective Optimizer.
           </p>
         </div>
 
@@ -96,66 +83,92 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 disabled:opacity-50"
+            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 disabled:opacity-50"
           >
             {generating ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
             ) : (
-              <Sparkles className="w-4 h-4 text-blue-200" />
+              <Sparkles className="w-4 h-4 text-amber-300" />
             )}
-            <span>{generating ? 'Running CSP Backtracking Solver...' : 'Generate Timetable (Phase 2.1 CSP)'}</span>
+            <span>{generating ? 'Running CSP + GA Optimization Pipeline...' : 'Generate Optimized Timetable (CSP + GA)'}</span>
           </button>
         </div>
       </div>
 
-      {/* Generation Result Banner */}
-      {resultMessage.text && (
-        <div
-          className={`p-5 rounded-2xl border shadow-sm space-y-3 ${
-            resultMessage.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-              : resultMessage.type === 'info'
-              ? 'bg-slate-50 border-slate-200 text-slate-800'
-              : 'bg-rose-50 border-rose-200 text-rose-900'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-3">
-              {resultMessage.type === 'success' ? (
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
-              ) : resultMessage.type === 'info' ? (
-                <CheckCircle2 className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
-              )}
-              <div>
-                <h4 className="text-sm font-bold">{resultMessage.text}</h4>
-                {resultMessage.count > 0 && (
-                  <p className="text-xs mt-1 font-semibold text-emerald-800">
-                    Assigned {resultMessage.count} period slots across working days with zero hard constraint conflicts.
-                  </p>
-                )}
-              </div>
+      {/* Optimization Performance Metrics Banner */}
+      {resultData && resultData.status === 'success' && (
+        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-2xl p-6 text-white border border-indigo-800 shadow-lg space-y-4">
+          <div className="flex items-center justify-between border-b border-indigo-800/80 pb-3">
+            <div className="flex items-center space-x-2">
+              <Award className="w-5 h-5 text-amber-400" />
+              <h3 className="text-base font-extrabold text-white">Genetic Algorithm Optimization Metrics</h3>
             </div>
-
-            {resultMessage.type === 'success' && (
-              <Link
-                to="/view-timetable"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow flex items-center space-x-1.5 shrink-0"
-              >
-                <CalendarDays className="w-4 h-4" />
-                <span>View Timetable Grid</span>
-              </Link>
-            )}
+            <Link
+              to="/view-timetable"
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow flex items-center space-x-1.5"
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span>View Master Timetable Grid</span>
+            </Link>
           </div>
 
-          {resultMessage.diagnostics && resultMessage.diagnostics.length > 0 && (
-            <div className="mt-3 p-4 bg-white rounded-xl border border-rose-200 space-y-1 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="bg-white/10 p-3.5 rounded-xl border border-white/10 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">Initial CSP Fitness</span>
+              <span className="text-xl font-extrabold text-slate-200 mt-1 block">{resultData.initial_fitness} / 100</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Baseline Feasible</span>
+            </div>
+
+            <div className="bg-white/10 p-3.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider block">Optimized GA Fitness</span>
+              <span className="text-xl font-extrabold text-emerald-400 mt-1 block">{resultData.optimized_fitness} / 100</span>
+              <span className="text-[10px] text-emerald-300 font-semibold mt-0.5 block">Multi-Objective Score</span>
+            </div>
+
+            <div className="bg-white/10 p-3.5 rounded-xl border border-amber-500/30 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">Fitness Improvement</span>
+              <span className="text-xl font-extrabold text-amber-400 mt-1 block flex items-center">
+                <TrendingUp className="w-4 h-4 mr-1 text-amber-400" />
+                +{resultData.improvement_percent}%
+              </span>
+              <span className="text-[10px] text-amber-300 mt-0.5 block">Workload & Spreading</span>
+            </div>
+
+            <div className="bg-white/10 p-3.5 rounded-xl border border-white/10 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block">Generations Run</span>
+              <span className="text-xl font-extrabold text-indigo-300 mt-1 block">{resultData.generations}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Full GA Convergence</span>
+            </div>
+
+            <div className="bg-white/10 p-3.5 rounded-xl border border-white/10 backdrop-blur-sm">
+              <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider block">Assigned Slots</span>
+              <span className="text-xl font-extrabold text-blue-300 mt-1 block">{resultData.generated_count}</span>
+              <span className="text-[10px] text-emerald-400 font-semibold mt-0.5 block">0 Hard Conflicts</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error / Diagnostic Alert Banner */}
+      {resultData && resultData.status === 'failed' && (
+        <div className="p-5 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl shadow-sm space-y-3">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold">{resultData.message}</h4>
+              <p className="text-xs text-rose-700 mt-1">
+                Please resolve the data constraints listed in the audit report before running generation.
+              </p>
+            </div>
+          </div>
+
+          {resultData.diagnostics && resultData.diagnostics.length > 0 && (
+            <div className="p-4 bg-white rounded-xl border border-rose-200 space-y-1 text-xs">
               <span className="font-bold text-rose-800 uppercase tracking-wider text-[10px]">
-                CSP Bottleneck Diagnostics:
+                Bottleneck Diagnostics:
               </span>
               <ul className="list-disc list-inside space-y-1 text-slate-700 font-mono text-[11px] mt-1">
-                {resultMessage.diagnostics.map((d, i) => (
+                {resultData.diagnostics.map((d, i) => (
                   <li key={i}>{d}</li>
                 ))}
               </ul>
@@ -168,7 +181,7 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
       <div
         className={`rounded-2xl p-6 border shadow-sm ${
           isReady
-            ? 'bg-gradient-to-r from-emerald-900 to-teal-900 text-white border-emerald-700'
+            ? 'bg-gradient-to-r from-indigo-900 via-blue-900 to-purple-950 text-white border-indigo-700'
             : 'bg-gradient-to-r from-slate-900 to-indigo-950 text-white border-slate-800'
         }`}
       >
@@ -176,13 +189,13 @@ const GenerateTimetable = ({ stats, refreshStats }) => {
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center space-x-2 px-3 py-1 bg-white/10 rounded-full text-xs font-semibold backdrop-blur-sm">
               <Cpu className="w-4 h-4 text-blue-300" />
-              <span>Phase 2.1 Engine: CSP & Backtracking Foundation</span>
+              <span>Phase 2.2 Pipeline: CSP + Genetic Algorithm</span>
             </div>
             <h3 className="text-2xl font-extrabold tracking-tight">
-              {isReady ? 'Ready for Deterministic CSP Scheduling' : 'Pre-Generation System Check'}
+              {isReady ? 'Feasibility + Soft-Constraint Optimization Ready' : 'Pre-Generation System Check'}
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              The CSP engine enforces 10 hard constraints including Section non-overlap, Faculty non-overlap, Room capacity, Laboratory requirement matching, 2-period contiguous lab blocks, and Break period protection.
+              CSP Backtracking guarantees 100% hard-constraint feasibility. The Genetic Algorithm then optimizes class spreading across Monday–Friday, balances faculty teaching loads, minimizes student idle gaps, and respects faculty time preferences across 100 generations.
             </p>
           </div>
 
