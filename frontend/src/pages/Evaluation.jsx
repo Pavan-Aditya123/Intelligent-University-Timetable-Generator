@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getEvaluationResults, runEvaluation } from '../services/api';
-import { FlaskConical, RefreshCw, Award, Scale, BarChart3, CheckCircle2, Cpu, TrendingUp, ShieldCheck, Zap, Layers, Sparkles } from 'lucide-react';
+import { FlaskConical, RefreshCw, Scale, BarChart3, CheckCircle2, Cpu, Zap, Clock } from 'lucide-react';
 
 const Evaluation = () => {
   const [data, setData] = useState(null);
@@ -40,6 +40,7 @@ const Evaluation = () => {
   const expB = data?.experiments?.experiment_b || {};
   const expC = data?.experiments?.experiment_c || {};
   const stoch = data?.stochastic_ga_analysis || {};
+  const timing = data?.timing_breakdown || {};
 
   return (
     <div className="space-y-6">
@@ -132,6 +133,27 @@ const Evaluation = () => {
               <div className="text-[10px] text-purple-300 font-bold text-right">Decision: {expC.fuzzy_decision}</div>
             </div>
           </div>
+
+          {/* Timing Breakdown Audit Banner */}
+          {timing && timing.total_evaluation_time_seconds && (
+            <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center space-x-2.5 text-blue-900 font-bold">
+                <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+                <span>Audited Experimental Suite Wall-Clock Timing Breakdown</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 font-mono text-[11px]">
+                <span className="px-3 py-1 bg-white rounded-lg border border-blue-200 text-slate-700">
+                  Stages Sum: <strong className="text-blue-700">{timing.sequential_stages_runtime_seconds || data.sequential_stages_runtime_seconds}s</strong>
+                </span>
+                <span className="px-3 py-1 bg-white rounded-lg border border-blue-200 text-slate-700">
+                  Total Wall-Clock: <strong className="text-emerald-700">{timing.total_evaluation_time_seconds || data.total_evaluation_time_seconds}s</strong>
+                </span>
+                <span className="px-3 py-1 bg-white rounded-lg border border-blue-200 text-slate-700">
+                  Orchestration Overhead: <strong className="text-purple-700">{timing.orchestration_overhead_seconds || data.orchestration_overhead_seconds}s</strong>
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Side-by-Side Comparison Table */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">

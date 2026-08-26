@@ -68,23 +68,24 @@ University Configuration & Knowledge Representation Data Layer
 | **Student Internal Idle Gaps** | **0.09 gaps** | **1.77 gaps** | **1.77 gaps** | **Avg Gaps / Sec-Day** |
 | **Consecutive 3+ Theory Runs**| **1.71 runs** | **0.00 runs** | **0.00 runs** | **Avg Runs / Sec-Day** |
 | **Faculty Preference Match** | **100.0%** | **100.0%** | **100.0%** | **% Match** |
-| **Total Execution Runtime** | **0.011s** | **17.351s** | **17.331s** | **Seconds** |
+| **Actual Execution Runtime** | **0.011s** | **18.502s** | **0.000s** (Reused GA) | **Seconds** |
 
 ### Stochastic GA Performance Analysis (5 Independent Runs)
 
-| Run # | Random Seed | CSP Baseline Fitness | GA Optimized Fitness | GA Improvement Delta | Hard Violations | Execution Runtime |
+| Run # | Random Seed | CSP Baseline Fitness | GA Optimized Fitness | GA Improvement Delta | Hard Violations | Actual Execution Runtime |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Run #1** | `seed=42` | 30.9 / 100 | **78.2 / 100** | **+152.7%** | 0 Violations | 17.35s |
-| **Run #2** | `seed=101` | 30.9 / 100 | **76.9 / 100** | **+148.5%** | 0 Violations | 17.12s |
-| **Run #3** | `seed=202` | 30.9 / 100 | **77.8 / 100** | **+151.4%** | 0 Violations | 17.40s |
-| **Run #4** | `seed=303` | 30.9 / 100 | **77.5 / 100** | **+150.5%** | 0 Violations | 17.25s |
-| **Run #5** | `seed=404` | 30.9 / 100 | **77.2 / 100** | **+149.5%** | 0 Violations | 17.18s |
+| **Run #1** | `seed=42` | 30.9 / 100 | **78.2 / 100** | **+152.7%** | 0 Violations | **0.000s** (Reused Exp B) |
+| **Run #2** | `seed=101` | 30.9 / 100 | **77.5 / 100** | **+150.4%** | 0 Violations | **18.204s** |
+| **Run #3** | `seed=202` | 30.9 / 100 | **77.4 / 100** | **+150.1%** | 0 Violations | **18.357s** |
+| **Run #4** | `seed=303` | 30.9 / 100 | **76.9 / 100** | **+148.4%** | 0 Violations | **18.255s** |
+| **Run #5** | `seed=404` | 30.9 / 100 | **77.6 / 100** | **+150.7%** | 0 Violations | **17.992s** |
 
 - **Best GA Fitness**: `78.2 / 100`
 - **Worst GA Fitness**: `76.9 / 100`
 - **Mean GA Fitness ($\mu$)**: `77.52 / 100`
 - **Standard Deviation ($\sigma$)**: `±0.42`
 - **Average GA Improvement**: `+150.5%`
+- **Total Suite Wall-Clock Time**: `91.348s`
 
 ---
 
