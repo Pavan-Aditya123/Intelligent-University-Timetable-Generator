@@ -12,6 +12,7 @@ import TimetablePreferences from './pages/TimetablePreferences';
 import GenerateTimetable from './pages/GenerateTimetable';
 import ViewTimetable from './pages/ViewTimetable';
 import ValidationConflicts from './pages/ValidationConflicts';
+import Evaluation from './pages/Evaluation';
 import { getDashboardStats } from './services/api';
 
 const App = () => {
@@ -52,6 +53,7 @@ const App = () => {
               <Route path="/generate-timetable" element={<GenerateTimetable stats={stats} refreshStats={refreshStats} />} />
               <Route path="/view-timetable" element={<ViewTimetable />} />
               <Route path="/validation-conflicts" element={<ValidationConflicts />} />
+              <Route path="/evaluation" element={<Evaluation />} />
             </Routes>
           </main>
         </div>

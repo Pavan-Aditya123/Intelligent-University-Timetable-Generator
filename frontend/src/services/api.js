@@ -50,4 +50,9 @@ export const clearGeneratedTimetable = () => api.delete('/scheduler/timetable');
 export const getTimetableAudit = () => api.get('/scheduler/audit');
 export const exportTimetableCsv = () => api.get('/scheduler/export', { responseType: 'blob' });
 
+// --- Phase 4 Experimental Evaluation API ---
+export const runEvaluation = () => api.post('/evaluation/run');
+export const getEvaluationResults = () => api.get('/evaluation/results');
+export const getEvaluationComparison = () => api.get('/evaluation/comparison');
+
 export default api;

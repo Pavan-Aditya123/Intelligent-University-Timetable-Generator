@@ -10,7 +10,8 @@ import {
   Sliders,
   Sparkles,
   CalendarDays,
-  ShieldCheck
+  ShieldCheck,
+  FlaskConical
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -25,6 +26,7 @@ const Sidebar = () => {
     { path: '/generate-timetable', label: 'Generate Timetable', icon: Sparkles },
     { path: '/view-timetable', label: 'View Timetable', icon: CalendarDays },
     { path: '/validation-conflicts', label: 'Validation / Conflicts', icon: ShieldCheck },
+    { path: '/evaluation', label: 'Research Evaluation', icon: FlaskConical },
   ];
 
   return (

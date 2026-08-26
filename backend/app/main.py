@@ -23,7 +23,8 @@ from .routers import (
     preferences,
     validation,
     dashboard,
-    scheduler
+    scheduler,
+    evaluation
 )
 
 # Trigger WAL-safe database backup on startup if database file exists
@@ -39,8 +40,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Intelligent University-Wide Timetable Generator API",
-    description="Backend API with Data Preservation, Health Monitoring, and CSP Backtracking Engine",
-    version="2.1.0"
+    description="Backend API with Data Preservation, Health Monitoring, CSP, GA, Fuzzy Decision Engine, and Research Evaluation Framework",
+    version="4.0.0"
 )
 
 # CORS Configuration for React Frontend
@@ -63,6 +64,7 @@ app.include_router(preferences.router)
 app.include_router(validation.router)
 app.include_router(dashboard.router)
 app.include_router(scheduler.router)
+app.include_router(evaluation.router)
 
 @app.get("/")
 def read_root():
