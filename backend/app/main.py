@@ -22,7 +22,8 @@ from .routers import (
     rooms,
     preferences,
     validation,
-    dashboard
+    dashboard,
+    scheduler
 )
 
 # Trigger WAL-safe database backup on startup if database file exists
@@ -38,8 +39,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Intelligent University-Wide Timetable Generator API",
-    description="Backend API with Data Preservation & Health Monitoring",
-    version="1.0.0"
+    description="Backend API with Data Preservation, Health Monitoring, and CSP Backtracking Engine",
+    version="2.1.0"
 )
 
 # CORS Configuration for React Frontend
@@ -61,13 +62,14 @@ app.include_router(rooms.router)
 app.include_router(preferences.router)
 app.include_router(validation.router)
 app.include_router(dashboard.router)
+app.include_router(scheduler.router)
 
 @app.get("/")
 def read_root():
     return {
         "status": "online",
         "project": "Intelligent University-Wide Timetable Generator",
-        "phase": "Phase 1 - Stable Architecture & Data Layer",
+        "phase": "Phase 2.1 - CSP & Backtracking Timetable Engine",
         "health": "/api/health",
         "documentation": "/docs"
     }
@@ -86,5 +88,6 @@ def get_health_status(db: Session = Depends(get_db)):
         "faculty": db.query(models.Faculty).count(),
         "subjects": db.query(models.Subject).count(),
         "rooms": db.query(models.Room).count(),
-        "preferences": db.query(models.TimetablePreference).count()
+        "preferences": db.query(models.TimetablePreference).count(),
+        "generated_entries": db.query(models.TimetableEntry).count()
     }
