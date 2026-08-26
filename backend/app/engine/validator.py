@@ -204,25 +204,56 @@ def validate_timetable(
     entries: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
-    Validates a generated list of TimetableEntry records against hard constraints:
-    1. Section non-overlap
-    2. Faculty non-overlap
-    3. Room non-overlap
-    4. Room capacity matching
-    5. Laboratory requirement matching
-    6. Faculty maximum weekly workload limit
+    Validates a generated list of TimetableEntry records against hard constraints.
+    """
+    audit = audit_hard_constraints(config, sections, faculty_list, subjects, rooms, entries)
+    return {
+        "is_valid": audit["is_valid"],
+        "errors": audit["errors"]
+    }
+
+def audit_hard_constraints(
+    config: Any,
+    sections: List[Any],
+    faculty_list: List[Any],
+    subjects: List[Any],
+    rooms: List[Any],
+    entries: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Phase 3 Extended Post-Generation Hard Constraint Audit.
+    Verifies all 8 explicit hard constraint categories:
+    1. Section Conflicts
+    2. Faculty Conflicts
+    3. Room Conflicts
+    4. Room Capacity Violations
+    5. Laboratory Room Type Violations
+    6. Weekly Subject Load Completion
+    7. Break Period Violations
+    8. Faculty Workload Limit Violations
     """
     section_map = {s.id: s for s in sections}
     faculty_map = {f.id: f for f in faculty_list}
     subject_map = {sub.id: sub for sub in subjects}
     room_map = {r.id: r for r in rooms}
 
+    periods_per_day = config.periods_per_day if config else 7
+
     section_busy = set()
     faculty_busy = set()
     room_busy = set()
     faculty_hours = {f.id: 0 for f in faculty_list}
+    subject_period_counts = {sub.id: 0 for sub in subjects}
 
-    errors = []
+    sec_conflicts = 0
+    fac_conflicts = 0
+    room_conflicts = 0
+    capacity_violations = 0
+    lab_type_violations = 0
+    break_violations = 0
+    fac_workload_violations = 0
+
+    all_errors = []
 
     for entry in entries:
         sec_id = entry["section_id"]
@@ -237,40 +268,83 @@ def validate_timetable(
         rm = room_map.get(room_id)
         fac = faculty_map.get(fac_id)
 
-        # Section overlap check
+        # 1. Section Overlap
         if (sec_id, day, p) in section_busy:
-            errors.append(f"Section conflict at ({sec.name if sec else sec_id}, {day}, period {p})")
+            sec_conflicts += 1
+            all_errors.append(f"Section overlap at ({sec.name if sec else sec_id}, {day}, period {p})")
         else:
             section_busy.add((sec_id, day, p))
 
-        # Faculty overlap check
+        # 2. Faculty Overlap
         if (fac_id, day, p) in faculty_busy:
-            errors.append(f"Faculty conflict at ({fac.name if fac else fac_id}, {day}, period {p})")
+            fac_conflicts += 1
+            all_errors.append(f"Faculty overlap at ({fac.name if fac else fac_id}, {day}, period {p})")
         else:
             faculty_busy.add((fac_id, day, p))
 
-        # Room overlap check
+        # 3. Room Overlap
         if (room_id, day, p) in room_busy:
-            errors.append(f"Room conflict at ({rm.room_number if rm else room_id}, {day}, period {p})")
+            room_conflicts += 1
+            all_errors.append(f"Room overlap at ({rm.room_number if rm else room_id}, {day}, period {p})")
         else:
             room_busy.add((room_id, day, p))
 
-        # Room capacity check
+        # 4. Room Capacity
         if rm and sec and rm.capacity < sec.student_count:
-            errors.append(f"Room capacity error: Room {rm.room_number} ({rm.capacity}) < Section {sec.name} ({sec.student_count})")
+            capacity_violations += 1
+            all_errors.append(f"Capacity error: Room {rm.room_number} ({rm.capacity}) < Section {sec.name} ({sec.student_count})")
 
-        # Lab requirement check
+        # 5. Laboratory Type
         if sub and (sub.requires_lab or sub.course_type == "Lab") and rm:
             if not (rm.is_lab or rm.room_type == "Laboratory"):
-                errors.append(f"Lab requirement error: Subject {sub.code} assigned to non-lab room {rm.room_number}")
+                lab_type_violations += 1
+                all_errors.append(f"Lab type error: Lab subject {sub.code} assigned to non-lab room {rm.room_number}")
 
-        # Faculty workload check
+        # 6. Break Protection
+        if p <= 0 or p > periods_per_day:
+            break_violations += 1
+            all_errors.append(f"Break violation: Slot period {p} is outside active class hours")
+
+        # Track counts
         faculty_hours[fac_id] = faculty_hours.get(fac_id, 0) + 1
-        if fac and faculty_hours[fac_id] > fac.max_weekly_hours:
-            errors.append(f"Faculty workload exceeded for {fac.name}: {faculty_hours[fac_id]} > {fac.max_weekly_hours}")
+        subject_period_counts[sub_id] = subject_period_counts.get(sub_id, 0) + 1
 
-    is_valid = len(errors) == 0
+    # 7. Faculty Workload Limit
+    for fac in faculty_list:
+        assigned = faculty_hours.get(fac.id, 0)
+        if assigned > fac.max_weekly_hours:
+            fac_workload_violations += 1
+            all_errors.append(f"Workload limit error: Faculty {fac.name} assigned {assigned} > max {fac.max_weekly_hours} hrs")
+
+    # 8. Weekly Load Allocation
+    weekly_load_violations = 0
+    for sub in subjects:
+        assigned = subject_period_counts.get(sub.id, 0)
+        required = sub.weekly_classes_required
+        if assigned < required:
+            weekly_load_violations += 1
+            all_errors.append(f"Subject load error: Subject '{sub.code}' assigned {assigned}/{required} required periods")
+
+    total_hard_violations = (
+        sec_conflicts + fac_conflicts + room_conflicts +
+        capacity_violations + lab_type_violations +
+        weekly_load_violations + break_violations + fac_workload_violations
+    )
+
+    is_valid = total_hard_violations == 0
+
     return {
         "is_valid": is_valid,
-        "errors": errors
+        "total_hard_violations": total_hard_violations,
+        "errors": all_errors,
+        "category_breakdown": {
+            "section_conflicts": sec_conflicts,
+            "faculty_conflicts": fac_conflicts,
+            "room_conflicts": room_conflicts,
+            "capacity_violations": capacity_violations,
+            "lab_type_violations": lab_type_violations,
+            "weekly_load_violations": weekly_load_violations,
+            "break_violations": break_violations,
+            "faculty_workload_violations": fac_workload_violations
+        }
     }

@@ -43,9 +43,11 @@ export const updatePreferences = (data) => api.post('/preferences', data);
 export const getValidationReport = () => api.get('/validation');
 export const getDashboardStats = () => api.get('/dashboard/stats');
 
-// --- Phase 2.1 Timetable Scheduler API ---
+// --- Phase 2 & Phase 3 Scheduler & Export API ---
 export const generateTimetable = () => api.post('/scheduler/generate');
 export const getGeneratedTimetable = (params) => api.get('/scheduler/timetable', { params });
 export const clearGeneratedTimetable = () => api.delete('/scheduler/timetable');
+export const getTimetableAudit = () => api.get('/scheduler/audit');
+export const exportTimetableCsv = () => api.get('/scheduler/export', { responseType: 'blob' });
 
 export default api;

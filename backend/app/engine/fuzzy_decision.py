@@ -258,16 +258,26 @@ class FuzzyDecisionEngine:
         output_strengths = {"Poor": 0.0, "Acceptable": 0.0, "Good": 0.0, "Excellent": 0.0}
         fired_rules = []
 
+        contribution_map = {
+            "Excellent": "Pushes defuzzified suitability score towards 90.0 (Excellent)",
+            "Good": "Pushes defuzzified suitability score towards 70.0 (Good)",
+            "Acceptable": "Pushes defuzzified suitability score towards 45.0 (Acceptable)",
+            "Poor": "Pushes defuzzified suitability score towards 20.0 (Poor)"
+        }
+
         for r in rules_def:
             weight = min(mf[var][term] for var, term in r["cond"])
             if weight > 0.0:
                 conseq = r["conseq"]
                 output_strengths[conseq] = max(output_strengths[conseq], weight)
-                cond_str = " AND ".join(f"{var}={term}" for var, term in r["cond"])
+                cond_str = " AND ".join(f"{var} is {term}" for var, term in r["cond"])
                 fired_rules.append({
                     "rule_id": r["id"],
                     "statement": f"IF {cond_str} THEN Suitability is {conseq}",
-                    "weight": round(weight, 3)
+                    "weight": round(weight, 3),
+                    "activation_weight": round(weight, 3),
+                    "consequence": conseq,
+                    "contribution_explanation": contribution_map.get(conseq, "")
                 })
 
         return fired_rules, output_strengths
